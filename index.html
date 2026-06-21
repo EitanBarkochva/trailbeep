@@ -38,8 +38,23 @@
   <div id="gpsStatus" class="gps-status" title="מצב מיקום">
     <span class="dot"></span><span class="gps-text">מאתר…</span>
   </div>
+  <button id="historyBtn" class="icon-btn" onclick="openHistory()" aria-label="היסטוריה" title="מקומות שעברת לידם">📜</button>
   <button id="settingsBtn" class="icon-btn" onclick="toggleSettings()" aria-label="הגדרות" title="הגדרות">⚙️</button>
 </header>
+
+<!-- ============ כרטיס מצב נהיגה ============ -->
+<div id="driveCard" class="drive-card" onclick="openDriveTarget()">
+  <div class="dc-head">🚗 האתר הבא בדרך</div>
+  <div class="dc-main">
+    <span id="dcEmoji" class="dc-emoji">🧭</span>
+    <div class="dc-info">
+      <div id="dcName" class="dc-name">מחפש אתרים בדרך…</div>
+      <div id="dcCat" class="dc-cat"></div>
+    </div>
+    <div id="dcDist" class="dc-dist"></div>
+  </div>
+  <button class="dc-exit" onclick="event.stopPropagation(); toggleDriveMode()">✕ צא ממצב נהיגה</button>
+</div>
 
 <!-- ============ באנר התראה (צץ למעלה) ============ -->
 <div id="alertBanner" class="alert-banner" onclick="openNearestFromBanner()" role="status" aria-live="polite"></div>
@@ -50,7 +65,8 @@
 <!-- ============ סרגל תחתון ============ -->
 <footer id="bottomBar">
   <button id="trackBtn" class="track-btn" onclick="toggleTracking()">▶ התחל מעקב</button>
-  <button class="ghost-btn" onclick="openNearbyList()">📍 קרוב אליי <span id="nearbyCount" class="badge">0</span></button>
+  <button id="driveBtn" class="ghost-btn icon-ghost" onclick="toggleDriveMode()" aria-label="מצב נהיגה" title="מצב נהיגה">🚗</button>
+  <button class="ghost-btn icon-ghost" onclick="openNearbyList()" aria-label="קרוב אליי" title="קרוב אליי">📍<span id="nearbyCount" class="badge">0</span></button>
 </footer>
 
 <!-- ============ פאנל הגדרות ============ -->
@@ -66,6 +82,8 @@
       <label class="check"><input type="checkbox" data-cat="springs" checked> 💧 מעיינות ומקווי מים</label>
       <label class="check"><input type="checkbox" data-cat="historic" checked> 🏺 אתרים היסטוריים ועתיקות</label>
       <label class="check"><input type="checkbox" data-cat="nature" checked> 🌲 תצפיות ושמורות טבע</label>
+      <label class="check"><input type="checkbox" data-cat="camping"> 🏕️ פיקניק וחניוני לילה</label>
+      <label class="check"><input type="checkbox" data-cat="trails"> 🥾 שבילי טיול ושילוט</label>
       <label class="check"><input type="checkbox" data-cat="tourism"> 🎯 אתרי תיירות כלליים</label>
     </section>
 
@@ -95,6 +113,18 @@
   </div>
   <div class="panel-body">
     <div id="nearbyList" class="nearby-list"></div>
+  </div>
+</div>
+
+<!-- ============ פאנל היסטוריה ============ -->
+<div id="historyPanel" class="panel">
+  <div class="panel-head">
+    <h2>📜 עברת לידם</h2>
+    <button class="close-x" onclick="openHistory()" aria-label="סגור">✕</button>
+  </div>
+  <div class="panel-body">
+    <div id="historyList" class="nearby-list"></div>
+    <button id="clearHistoryBtn" class="ghost-wide" onclick="clearHistory()" hidden>🗑️ נקה היסטוריה</button>
   </div>
 </div>
 

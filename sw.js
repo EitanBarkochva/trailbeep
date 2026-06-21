@@ -2,7 +2,7 @@
    מטמון "מעטפת אפליקציה" כדי שתיפתח גם בלי רשת.
    נתוני המפה/אתרים/ויקיפדיה תמיד מהרשת (לא נשמרים כאן). */
 
-const CACHE = 'more-derech-v1';
+const CACHE = 'more-derech-v2';
 const SHELL = [
   './',
   './index.html',
@@ -40,12 +40,12 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // מעטפת — cache first
+  // קבצי המעטפת — network first (כדי שעדכונים יגיעו מיד), עם נפילה למטמון במצב לא-מקוון
   e.respondWith(
-    caches.match(req).then(hit => hit || fetch(req).then(res => {
+    fetch(req).then(res => {
       const copy = res.clone();
       caches.open(CACHE).then(c => c.put(req, copy)).catch(()=>{});
       return res;
-    }).catch(() => caches.match('./index.html')))
+    }).catch(() => caches.match(req).then(hit => hit || caches.match('./index.html')))
   );
 });

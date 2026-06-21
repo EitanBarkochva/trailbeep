@@ -21,6 +21,11 @@ const State = {
   lastFetchPos: null,   // איפה שאבנו נתונים לאחרונה
   fetching: false,
   followUser: true,
+  driveMode: false,
+  driveTarget: null,    // ה-POI שמוצג כרגע בכרטיס הנהיגה
+  bearing: null,        // כיוון הנסיעה במעלות
+  bearingFrom: null,    // נקודה ממנה מחשבים כיוון
+  history: loadHistory(),
   settings: loadSettings(),
 };
 
@@ -37,6 +42,14 @@ const CATEGORIES = {
   nature: {
     emoji: '🌲', label: 'תצפית / טבע',
     tags: [['tourism','viewpoint'], ['leisure','nature_reserve'], ['boundary','national_park']],
+  },
+  camping: {
+    emoji: '🏕️', label: 'פיקניק / חניית לילה',
+    tags: [['tourism','picnic_site'], ['tourism','camp_site'], ['tourism','caravan_site'], ['leisure','picnic_table']],
+  },
+  trails: {
+    emoji: '🥾', label: 'שביל / שילוט',
+    tags: [['highway','trailhead'], ['information','guidepost'], ['tourism','information']],
   },
   tourism: {
     emoji: '🎯', label: 'אתר תיירות',
@@ -121,11 +134,26 @@ function stopTracking(){
 function onPosition(p){
   const { latitude:lat, longitude:lon, accuracy:acc } = p.coords;
   State.pos = { lat, lon, acc };
+  updateBearing(lat, lon, p.coords.heading);
   setGps('live', State.tracking ? 'עוקב…' : 'מאותר');
   drawUser(lat, lon, acc);
   if(State.followUser) State.map.setView([lat, lon], Math.max(State.map.getZoom(), 14), { animate:true });
   maybeFetchPOIs(lat, lon);
   checkProximity(lat, lon);
+  if(State.driveMode) updateDriveCard();
+}
+
+// כיוון נסיעה: מהמכשיר אם זמין, אחרת מחושב מתזוזה של 15 מ׳ ומעלה
+function updateBearing(lat, lon, deviceHeading){
+  if(deviceHeading != null && !isNaN(deviceHeading) && deviceHeading >= 0){
+    State.bearing = deviceHeading; return;
+  }
+  if(!State.bearingFrom){ State.bearingFrom = { lat, lon }; return; }
+  const moved = haversine(State.bearingFrom.lat, State.bearingFrom.lon, lat, lon);
+  if(moved >= 15){
+    State.bearing = bearing(State.bearingFrom.lat, State.bearingFrom.lon, lat, lon);
+    State.bearingFrom = { lat, lon };
+  }
 }
 
 function onGeoError(e){
@@ -220,6 +248,7 @@ function ingestOverpass(data, cats){
 
     const cat = classify(tags, cats);
     if(!cat) continue;
+    if(isDuplicate(name, lat, lon)) continue; // אותו שם קרוב לאתר קיים (node+way כפול)
 
     const poi = { id, lat, lon, name, cat, tags };
     State.pois.set(id, poi);
@@ -227,6 +256,13 @@ function ingestOverpass(data, cats){
     added++;
   }
   if(added) refreshNearbyBadge();
+}
+
+function isDuplicate(name, lat, lon){
+  for(const p of State.pois.values()){
+    if(p.name === name && haversine(lat, lon, p.lat, p.lon) < 200) return true;
+  }
+  return false;
 }
 
 function classify(tags, cats){
@@ -275,6 +311,7 @@ function fireAlert(poi, dist){
   beep();
   vibrate([180, 80, 180]);
   showBanner(poi, dist);
+  logHistory(poi, dist);
   refreshNearbyBadge();
 }
 
@@ -425,12 +462,135 @@ function openNearbyList(){
 }
 
 /* ============================================================
+   מצב נהיגה — כרטיס גדול של האתר הבא בדרך
+   ============================================================ */
+function toggleDriveMode(){
+  State.driveMode = !State.driveMode;
+  const card = document.getElementById('driveCard');
+  const btn = document.getElementById('driveBtn');
+  card.classList.toggle('show', State.driveMode);
+  btn.classList.toggle('on', State.driveMode);
+  if(State.driveMode){
+    if(!State.tracking) startTracking(); // מצב נהיגה מפעיל מעקב אוטומטית
+    updateDriveCard();
+  }
+}
+
+function updateDriveCard(){
+  const poi = computeNextAhead();
+  State.driveTarget = poi;
+  const nameEl = document.getElementById('dcName');
+  const catEl = document.getElementById('dcCat');
+  const distEl = document.getElementById('dcDist');
+  const emojiEl = document.getElementById('dcEmoji');
+  if(!poi){
+    emojiEl.textContent = '🧭';
+    nameEl.textContent = 'מחפש אתרים בדרך…';
+    catEl.textContent = ''; distEl.textContent = '';
+    return;
+  }
+  const c = CATEGORIES[poi.cat];
+  emojiEl.textContent = c.emoji;
+  nameEl.textContent = poi.name;
+  catEl.textContent = c.label;
+  distEl.textContent = fmtDist(poi._dist);
+}
+
+// בוחר את האתר הקרוב ביותר שנמצא בערך בכיוון הנסיעה (±80°); אם אין — הקרוב ביותר.
+function computeNextAhead(){
+  if(!State.pos) return null;
+  const list = nearbySorted();
+  if(list.length === 0) return null;
+  if(State.bearing != null){
+    for(const poi of list){
+      const b = bearing(State.pos.lat, State.pos.lon, poi.lat, poi.lon);
+      if(angleDiff(b, State.bearing) <= 80) return poi;
+    }
+  }
+  return list[0];
+}
+
+function openDriveTarget(){ if(State.driveTarget) openPlace(State.driveTarget.id); }
+
+/* ============================================================
+   היסטוריה — מקומות שעברנו לידם
+   ============================================================ */
+function loadHistory(){
+  try{ return JSON.parse(localStorage.getItem('moreDerech_history') || '[]'); }
+  catch(e){ return []; }
+}
+function saveHistory(){
+  try{ localStorage.setItem('moreDerech_history', JSON.stringify(State.history.slice(0, 200))); }
+  catch(e){ /* מלא? נתעלם */ }
+}
+function logHistory(poi, dist){
+  const now = Date.now();
+  // לא לרשום שוב את אותו מקום (לפי מזהה או שם) אם נרשם ב-3 השעות האחרונות
+  const recent = State.history.find(h =>
+    (h.id === poi.id || h.name === poi.name) && (now - h.time) < 3*3600*1000);
+  if(recent) return;
+  State.history.unshift({
+    id: poi.id, name: poi.name, cat: poi.cat,
+    lat: poi.lat, lon: poi.lon, dist: Math.round(dist), time: now,
+  });
+  State.history = State.history.slice(0, 200);
+  saveHistory();
+}
+function openHistory(){
+  const panel = document.getElementById('historyPanel');
+  const open = panel.classList.contains('open');
+  closeAll();
+  if(open) return;
+  renderHistory();
+  panel.classList.add('open');
+  showScrim();
+}
+function renderHistory(){
+  const list = document.getElementById('historyList');
+  const clearBtn = document.getElementById('clearHistoryBtn');
+  if(State.history.length === 0){
+    list.innerHTML = '<div class="empty">עוד לא עברת ליד מקומות מסומנים.<br>הפעל מעקב וצא לדרך 🚗</div>';
+    clearBtn.hidden = true;
+    return;
+  }
+  clearBtn.hidden = false;
+  list.innerHTML = State.history.map(h => {
+    const c = CATEGORIES[h.cat] || { emoji:'📍', label:'' };
+    return `<div class="nearby-item" onclick="openFromHistory('${h.id}')">
+      <span class="ni-emoji">${c.emoji}</span>
+      <span class="ni-body">
+        <span class="ni-title">${escapeHtml(h.name)}</span>
+        <span class="ni-sub">${c.label}</span>
+        <span class="ni-time">${fmtTime(h.time)} · עברת ב-${fmtDist(h.dist)}</span>
+      </span>
+    </div>`;
+  }).join('');
+}
+function openFromHistory(id){
+  // אם המקום לא טעון כרגע במפה — נשחזר אותו מההיסטוריה כדי לפתוח פרטים
+  if(!State.pois.has(id)){
+    const h = State.history.find(x => x.id === id);
+    if(h) State.pois.set(id, { id:h.id, name:h.name, cat:h.cat, lat:h.lat, lon:h.lon, tags:{} });
+  }
+  openPlace(id);
+}
+function clearHistory(){
+  if(!confirm('למחוק את כל ההיסטוריה?')) return;
+  State.history = [];
+  saveHistory();
+  renderHistory();
+}
+
+/* ============================================================
    הגדרות
    ============================================================ */
 function loadSettings(){
-  const def = { cats:{springs:true,historic:true,nature:true,tourism:false}, radius:350, sound:true, vibrate:true, wake:true };
-  try{ return Object.assign(def, JSON.parse(localStorage.getItem('moreDerech') || '{}')); }
-  catch(e){ return def; }
+  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, radius:350, sound:true, vibrate:true, wake:true };
+  try{
+    const saved = JSON.parse(localStorage.getItem('moreDerech') || '{}');
+    const cats = Object.assign({}, def.cats, saved.cats || {});
+    return Object.assign(def, saved, { cats });
+  }catch(e){ return def; }
 }
 function saveSettings(){ localStorage.setItem('moreDerech', JSON.stringify(State.settings)); }
 
@@ -550,6 +710,26 @@ function haversine(lat1, lon1, lat2, lon2){
 function fmtDist(m){
   if(m == null || !isFinite(m)) return '';
   return m < 1000 ? Math.round(m/10)*10 + ' מ׳' : (m/1000).toFixed(1) + ' ק״מ';
+}
+function bearing(lat1, lon1, lat2, lon2){
+  const toRad = d => d*Math.PI/180;
+  const y = Math.sin(toRad(lon2-lon1)) * Math.cos(toRad(lat2));
+  const x = Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) -
+            Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
+  return (Math.atan2(y, x)*180/Math.PI + 360) % 360;
+}
+function angleDiff(a, b){
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+function fmtTime(ts){
+  const d = new Date(ts), now = new Date();
+  const hm = d.toLocaleTimeString('he-IL', { hour:'2-digit', minute:'2-digit' });
+  const sameDay = d.toDateString() === now.toDateString();
+  if(sameDay) return 'היום ' + hm;
+  const yest = new Date(now); yest.setDate(now.getDate()-1);
+  if(d.toDateString() === yest.toDateString()) return 'אתמול ' + hm;
+  return d.toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit' }) + ' ' + hm;
 }
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
