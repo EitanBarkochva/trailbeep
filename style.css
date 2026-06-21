@@ -272,6 +272,12 @@ input[type=range]{width:100%;accent-color:var(--teal);height:28px}
 .ob-list li:last-child{border-bottom:none}
 .ob-list li span{font-size:24px;flex-shrink:0;width:30px;text-align:center}
 .ob-note{font-size:13px;color:var(--muted);background:#f0fdfa;border:1px solid #ccfbf1;border-radius:12px;padding:12px;margin:0 0 18px;line-height:1.6}
+.ob-important{background:#fffbeb;border:1.5px solid #fde68a;border-radius:14px;padding:14px;margin:0 0 18px;text-align:start}
+.ob-important-title{font-weight:800;color:#92400e;font-size:15px;margin-bottom:6px}
+.ob-important p{font-size:13.5px;color:#7c5e10;line-height:1.6;margin:0 0 10px}
+.ob-steps{display:flex;flex-direction:column;gap:8px}
+.ob-step{display:flex;align-items:flex-start;gap:10px;font-size:14px;font-weight:600;color:var(--ink);line-height:1.5}
+.ob-step span{font-size:20px;flex-shrink:0;width:26px;text-align:center}
 .ob-btn{
   width:100%;border:none;border-radius:14px;padding:16px;font-size:18px;font-weight:800;font-family:inherit;
   background:var(--teal);color:#fff;cursor:pointer;

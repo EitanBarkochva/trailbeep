@@ -132,7 +132,12 @@ function startTracking(){
   btn.classList.add('on');
   btn.textContent = '⏹ עצור מעקב';
   setGps('live','עוקב…');
-  toast('מעקב הופעל — סע בזהירות 🚗');
+  if(!localStorage.getItem('moreDerech_trackTip')){
+    localStorage.setItem('moreDerech_trackTip', '1');
+    toast('💡 השאירו את האפליקציה פתוחה על המסך — המעקב נעצר אם המסך ננעל');
+  } else {
+    toast('מעקב הופעל — סע בזהירות 🚗');
+  }
 }
 
 function stopTracking(){
