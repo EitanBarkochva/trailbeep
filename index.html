@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <title>מורה דרך — מדריך טיולים שמתריע ברקע</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="מורה דרך">
+
+  <!-- גופן -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&family=Secular+One&display=swap" rel="stylesheet">
+
+  <!-- מפה -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ מפה ============ -->
+<div id="map"></div>
+
+<!-- ============ סרגל עליון ============ -->
+<header id="topBar">
+  <div class="brand">
+    <span class="brand-logo">🧭</span>
+    <span class="brand-name">מורה דרך</span>
+  </div>
+  <div id="gpsStatus" class="gps-status" title="מצב מיקום">
+    <span class="dot"></span><span class="gps-text">מאתר…</span>
+  </div>
+  <button id="settingsBtn" class="icon-btn" onclick="toggleSettings()" aria-label="הגדרות" title="הגדרות">⚙️</button>
+</header>
+
+<!-- ============ באנר התראה (צץ למעלה) ============ -->
+<div id="alertBanner" class="alert-banner" onclick="openNearestFromBanner()" role="status" aria-live="polite"></div>
+
+<!-- ============ כפתור מרכוז ============ -->
+<button id="recenterBtn" class="recenter-btn" onclick="recenter()" aria-label="מרכז על המיקום שלי" title="מרכז עליי">🎯</button>
+
+<!-- ============ סרגל תחתון ============ -->
+<footer id="bottomBar">
+  <button id="trackBtn" class="track-btn" onclick="toggleTracking()">▶ התחל מעקב</button>
+  <button class="ghost-btn" onclick="openNearbyList()">📍 קרוב אליי <span id="nearbyCount" class="badge">0</span></button>
+</footer>
+
+<!-- ============ פאנל הגדרות ============ -->
+<div id="settingsPanel" class="panel">
+  <div class="panel-head">
+    <h2>⚙️ הגדרות</h2>
+    <button class="close-x" onclick="toggleSettings()" aria-label="סגור">✕</button>
+  </div>
+
+  <div class="panel-body">
+    <section class="field">
+      <h3>על מה להתריע?</h3>
+      <label class="check"><input type="checkbox" data-cat="springs" checked> 💧 מעיינות ומקווי מים</label>
+      <label class="check"><input type="checkbox" data-cat="historic" checked> 🏺 אתרים היסטוריים ועתיקות</label>
+      <label class="check"><input type="checkbox" data-cat="nature" checked> 🌲 תצפיות ושמורות טבע</label>
+      <label class="check"><input type="checkbox" data-cat="tourism"> 🎯 אתרי תיירות כלליים</label>
+    </section>
+
+    <section class="field">
+      <h3>מרחק התראה</h3>
+      <input type="range" id="radiusRange" min="100" max="2000" step="50" value="350" oninput="onRadiusChange(this.value)">
+      <div class="range-val">צפצוף כשמתקרבים עד <b id="radiusVal">350</b> מ׳</div>
+    </section>
+
+    <section class="field">
+      <label class="check toggle"><input type="checkbox" id="soundChk" checked> 🔊 צפצוף קולי</label>
+      <label class="check toggle"><input type="checkbox" id="vibrateChk" checked> 📳 רטט</label>
+      <label class="check toggle"><input type="checkbox" id="wakeChk" checked> ☀️ השאר מסך דולק בזמן מעקב</label>
+    </section>
+
+    <section class="field note">
+      <p>💡 מעקב פועל כל עוד האפליקציה פתוחה על המסך. הניחו את הטלפון על הדשבורד — "השאר מסך דולק" ימשיך לעקוב לאורך הנסיעה.</p>
+    </section>
+  </div>
+</div>
+
+<!-- ============ פאנל "קרוב אליי" ============ -->
+<div id="nearbyPanel" class="panel">
+  <div class="panel-head">
+    <h2>📍 קרוב אליי</h2>
+    <button class="close-x" onclick="openNearbyList()" aria-label="סגור">✕</button>
+  </div>
+  <div class="panel-body">
+    <div id="nearbyList" class="nearby-list"></div>
+  </div>
+</div>
+
+<!-- ============ גיליון פרטי מקום ============ -->
+<div id="placeSheet" class="sheet">
+  <div class="sheet-handle" onclick="closeSheet()"></div>
+  <div class="sheet-head">
+    <span id="sheetIcon" class="sheet-icon">📍</span>
+    <h2 id="sheetTitle">—</h2>
+    <button class="close-x" onclick="closeSheet()" aria-label="סגור">✕</button>
+  </div>
+  <div class="sheet-meta">
+    <span id="sheetDist" class="chip"></span>
+    <span id="sheetCat" class="chip"></span>
+  </div>
+  <div id="sheetBody" class="sheet-body">
+    <p class="muted">טוען הסבר…</p>
+  </div>
+  <div class="sheet-actions">
+    <button class="primary-btn" id="navBtn">🗺️ נווט לכאן</button>
+  </div>
+</div>
+
+<!-- ============ שכבת רקע ============ -->
+<div id="scrim" class="scrim" onclick="closeAll()"></div>
+
+<!-- מפה -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>

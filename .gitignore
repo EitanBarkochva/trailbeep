@@ -1,0 +1,8 @@
+# תלויות / מערכת
+node_modules/
+.DS_Store
+Thumbs.db
+
+# קבצים זמניים
+*.log
+.cache/

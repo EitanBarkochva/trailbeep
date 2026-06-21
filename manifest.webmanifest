@@ -1,0 +1,17 @@
+{
+  "name": "מורה דרך — מדריך טיולים",
+  "short_name": "מורה דרך",
+  "description": "מתריע כשמתקרבים למעיין, אתר היסטורי או תצפית, עם הסבר קצר.",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f766e",
+  "theme_color": "#0f766e",
+  "icons": [
+    { "src": "icons/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
