@@ -88,6 +88,11 @@
     </section>
 
     <section class="field">
+      <h3>סינון</h3>
+      <label class="check toggle"><input type="checkbox" id="onlyNewChk"> 🆕 התרע רק על מקומות שלא עברתי</label>
+    </section>
+
+    <section class="field">
       <h3>מרחק התראה</h3>
       <input type="range" id="radiusRange" min="100" max="2000" step="50" value="350" oninput="onRadiusChange(this.value)">
       <div class="range-val">צפצוף כשמתקרבים עד <b id="radiusVal">350</b> מ׳</div>
@@ -95,8 +100,10 @@
 
     <section class="field">
       <label class="check toggle"><input type="checkbox" id="soundChk" checked> 🔊 צפצוף קולי</label>
+      <label class="check toggle"><input type="checkbox" id="speakChk" checked> 🗣️ הקראת שם המקום בקול</label>
       <label class="check toggle"><input type="checkbox" id="vibrateChk" checked> 📳 רטט</label>
       <label class="check toggle"><input type="checkbox" id="wakeChk" checked> ☀️ השאר מסך דולק בזמן מעקב</label>
+      <label class="check toggle"><input type="checkbox" id="nightChk"> 🌙 מצב לילה (מפה כהה)</label>
     </section>
 
     <section class="field note">

@@ -9,6 +9,7 @@
 /* ---------- מצב גלובלי ---------- */
 const State = {
   map: null,
+  tileLayer: null,
   userMarker: null,
   accuracyCircle: null,
   pos: null,            // {lat, lon, acc}
@@ -65,6 +66,7 @@ const ISRAEL_CENTER = [31.7, 35.1];
 function init(){
   initMap();
   applySettingsToUI();
+  setNightMode(State.settings.night);
   registerSW();
   // ניסיון לאתר מיקום פעם אחת מיד (גם בלי מעקב מלא)
   locateOnce();
@@ -78,7 +80,7 @@ function initMap(){
 
   L.control.zoom({ position:'bottomright' }).addTo(State.map);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  State.tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap',
   }).addTo(State.map);
@@ -300,7 +302,7 @@ function checkProximity(lat, lon){
 
     if(d <= R && !State.alerted.has(poi.id)){
       State.alerted.add(poi.id);
-      fireAlert(poi, d);
+      if(!(State.settings.onlyNew && isVisited(poi))) fireAlert(poi, d);
     }
     // אם התרחקנו מספיק — מאפסים כדי שיתריע שוב בביקור הבא
     if(d > R * 2.5) State.alerted.delete(poi.id);
@@ -310,6 +312,7 @@ function checkProximity(lat, lon){
 function fireAlert(poi, dist){
   beep();
   vibrate([180, 80, 180]);
+  speak(`מתקרבים ל${poi.name}`);
   showBanner(poi, dist);
   logHistory(poi, dist);
   refreshNearbyBadge();
@@ -447,11 +450,13 @@ function openNearbyList(){
   } else {
     list.innerHTML = items.map(p => {
       const c = CATEGORIES[p.cat];
+      const visited = isVisited(p) ? '<span class="ni-time">✓ כבר עברת כאן</span>' : '';
       return `<div class="nearby-item" onclick="openPlace('${p.id}')">
         <span class="ni-emoji">${c.emoji}</span>
         <span class="ni-body">
           <span class="ni-title">${escapeHtml(p.name)}</span>
           <span class="ni-sub">${c.label}</span>
+          ${visited}
         </span>
         <span class="ni-dist">${fmtDist(p._dist)}</span>
       </div>`;
@@ -580,12 +585,31 @@ function clearHistory(){
   saveHistory();
   renderHistory();
 }
+function isVisited(poi){
+  return State.history.some(h => h.id === poi.id || h.name === poi.name);
+}
+
+/* ============================================================
+   מצב לילה — החלפת אריחי מפה כהים
+   ============================================================ */
+function setNightMode(on){
+  document.body.classList.toggle('night', on);
+  if(!State.map) return;
+  if(State.tileLayer) State.map.removeLayer(State.tileLayer);
+  const url = on
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  State.tileLayer = L.tileLayer(url, {
+    maxZoom: 19,
+    attribution: on ? '© OpenStreetMap © CARTO' : '© OpenStreetMap',
+  }).addTo(State.map);
+}
 
 /* ============================================================
    הגדרות
    ============================================================ */
 function loadSettings(){
-  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, radius:350, sound:true, vibrate:true, wake:true };
+  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, radius:350, sound:true, speak:true, vibrate:true, wake:true, onlyNew:false, night:false };
   try{
     const saved = JSON.parse(localStorage.getItem('moreDerech') || '{}');
     const cats = Object.assign({}, def.cats, saved.cats || {});
@@ -601,7 +625,8 @@ function applySettingsToUI(){
   });
   document.getElementById('radiusRange').value = State.settings.radius;
   document.getElementById('radiusVal').textContent = State.settings.radius;
-  bindToggle('soundChk','sound'); bindToggle('vibrateChk','vibrate'); bindToggle('wakeChk','wake');
+  bindToggle('soundChk','sound'); bindToggle('speakChk','speak'); bindToggle('vibrateChk','vibrate');
+  bindToggle('wakeChk','wake'); bindToggle('onlyNewChk','onlyNew'); bindToggle('nightChk','night');
 }
 function bindToggle(elId, key){
   const el = document.getElementById(elId);
@@ -609,6 +634,9 @@ function bindToggle(elId, key){
   el.addEventListener('change', () => {
     State.settings[key] = el.checked; saveSettings();
     if(key === 'wake'){ el.checked && State.tracking ? requestWakeLock() : releaseWakeLock(); }
+    if(key === 'night'){ setNightMode(el.checked); }
+    if(key === 'speak' && el.checked){ speak('הקראת שם המקום מופעלת'); }
+    if(key === 'onlyNew'){ refreshNearbyBadge(); }
   });
 }
 function onCatChange(e){
@@ -652,6 +680,29 @@ function beep(){
   }catch(e){ /* התעלם */ }
 }
 function vibrate(pattern){ if(State.settings.vibrate && navigator.vibrate) navigator.vibrate(pattern); }
+
+/* ---------- הקראה קולית (קריין) ---------- */
+let heVoice = null;
+function pickVoice(){
+  if(!('speechSynthesis' in window)) return;
+  const vs = speechSynthesis.getVoices();
+  heVoice = vs.find(v => /^(he|iw)/i.test(v.lang)) || heVoice;
+}
+if('speechSynthesis' in window){
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+function speak(text){
+  if(!State.settings.speak || !('speechSynthesis' in window)) return;
+  try{
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'he-IL';
+    if(heVoice) u.voice = heVoice;
+    u.rate = 1; u.pitch = 1; u.volume = 1;
+    speechSynthesis.speak(u);
+  }catch(e){ /* אין הקראה */ }
+}
 
 async function requestWakeLock(){
   if(!('wakeLock' in navigator)) return;
