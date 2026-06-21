@@ -97,6 +97,14 @@
     </section>
 
     <section class="field">
+      <h3>שפת הקראה (קריין)</h3>
+      <select id="voiceLangSel" class="nav-select">
+        <option value="he">עברית</option>
+        <option value="en">English</option>
+      </select>
+    </section>
+
+    <section class="field">
       <h3>אפליקציית ניווט מועדפת</h3>
       <select id="navAppSel" class="nav-select">
         <option value="ask">שאל כל פעם (Waze / Google)</option>
@@ -137,6 +145,12 @@
     <button class="close-x" onclick="openNearbyList()" aria-label="סגור">✕</button>
   </div>
   <div class="panel-body">
+    <div class="filter-row" id="nearbyFilter">
+      <button class="filter-chip active" data-km="0">הכל</button>
+      <button class="filter-chip" data-km="1">עד 1 ק״מ</button>
+      <button class="filter-chip" data-km="5">עד 5 ק״מ</button>
+      <button class="filter-chip" data-km="20">עד 20 ק״מ</button>
+    </div>
     <div id="nearbyList" class="nearby-list"></div>
   </div>
 </div>
@@ -149,6 +163,7 @@
   </div>
   <div class="panel-body">
     <div id="historyList" class="nearby-list"></div>
+    <button id="exportHistoryBtn" class="ghost-wide" onclick="exportHistory()" hidden>⬇️ ייצוא לקובץ (CSV)</button>
     <button id="clearHistoryBtn" class="ghost-wide" onclick="clearHistory()" hidden>🗑️ נקה היסטוריה</button>
   </div>
 </div>

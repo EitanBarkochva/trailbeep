@@ -172,6 +172,12 @@ input[type=range]{width:100%;accent-color:var(--teal);height:28px}
 .nearby-item .ni-sub{font-size:13px;color:var(--muted)}
 .nearby-item .ni-dist{font-weight:800;color:var(--teal-d);font-size:14px;white-space:nowrap}
 .empty{color:var(--muted);text-align:center;padding:40px 10px}
+.filter-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.filter-chip{
+  border:1.5px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;
+  padding:7px 13px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;
+}
+.filter-chip.active{background:var(--teal);color:#fff;border-color:var(--teal)}
 
 /* ---------- גיליון פרטים ---------- */
 .sheet{

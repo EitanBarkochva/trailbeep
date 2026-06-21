@@ -24,6 +24,7 @@ const State = {
   followUser: true,
   driveMode: false,
   driveTarget: null,    // ה-POI שמוצג כרגע בכרטיס הנהיגה
+  nearbyMaxKm: 0,       // סינון מרחק ברשימת "קרוב אליי" (0 = הכל)
   bearing: null,        // כיוון הנסיעה במעלות
   bearingFrom: null,    // נקודה ממנה מחשבים כיוון
   speed: 0,             // מהירות נוכחית במ׳/ש
@@ -256,7 +257,7 @@ function ingestOverpass(data, cats){
     if(!cat) continue;
     if(isDuplicate(name, lat, lon)) continue; // אותו שם קרוב לאתר קיים (node+way כפול)
 
-    const poi = { id, lat, lon, name, cat, tags };
+    const poi = { id, lat, lon, name, nameEn: tags['name:en'] || null, cat, tags };
     State.pois.set(id, poi);
     addMarker(poi);
     added++;
@@ -325,7 +326,7 @@ function effectiveRadius(){
 function fireAlert(poi, dist){
   beep();
   vibrate([180, 80, 180]);
-  speak(`מתקרבים ל${poi.name}`);
+  speak(announceText(poi));
   showBanner(poi, dist);
   logHistory(poi, dist);
   refreshNearbyBadge();
@@ -470,10 +471,32 @@ function openNearbyList(){
   const open = panel.classList.contains('open');
   closeAll();
   if(open) return;
+  renderNearby();
+  panel.classList.add('open');
+  showScrim();
+}
+
+function setupNearbyFilter(){
+  document.querySelectorAll('#nearbyFilter .filter-chip').forEach(ch => {
+    ch.addEventListener('click', () => {
+      document.querySelectorAll('#nearbyFilter .filter-chip').forEach(c => c.classList.remove('active'));
+      ch.classList.add('active');
+      State.nearbyMaxKm = +ch.dataset.km;
+      renderNearby();
+    });
+  });
+}
+
+function renderNearby(){
   const list = document.getElementById('nearbyList');
-  const items = nearbySorted().slice(0, 40);
+  let items = nearbySorted();
+  if(State.nearbyMaxKm > 0) items = items.filter(p => p._dist <= State.nearbyMaxKm * 1000);
+  items = items.slice(0, 40);
   if(items.length === 0){
-    list.innerHTML = '<div class="empty">עדיין לא נמצאו מקומות בקרבת מקום.<br>הפעילו מעקב והתחילו לנסוע 🚗</div>';
+    const msg = State.nearbyMaxKm > 0
+      ? `אין מקומות עד ${State.nearbyMaxKm} ק״מ.<br>נסו טווח גדול יותר.`
+      : 'עדיין לא נמצאו מקומות בקרבת מקום.<br>הפעילו מעקב והתחילו לנסוע 🚗';
+    list.innerHTML = `<div class="empty">${msg}</div>`;
   } else {
     list.innerHTML = items.map(p => {
       const c = CATEGORIES[p.cat];
@@ -489,8 +512,6 @@ function openNearbyList(){
       </div>`;
     }).join('');
   }
-  panel.classList.add('open');
-  showScrim();
 }
 
 /* ============================================================
@@ -636,12 +657,13 @@ function openHistory(){
 function renderHistory(){
   const list = document.getElementById('historyList');
   const clearBtn = document.getElementById('clearHistoryBtn');
+  const exportBtn = document.getElementById('exportHistoryBtn');
   if(State.history.length === 0){
     list.innerHTML = '<div class="empty">עוד לא עברת ליד מקומות מסומנים.<br>הפעל מעקב וצא לדרך 🚗</div>';
-    clearBtn.hidden = true;
+    clearBtn.hidden = true; exportBtn.hidden = true;
     return;
   }
-  clearBtn.hidden = false;
+  clearBtn.hidden = false; exportBtn.hidden = false;
   const t = todayCount();
   const summary = `<div class="hist-summary">📅 עברת היום ליד ${t} ${t === 1 ? 'מקום' : 'מקומות'}</div>`;
   list.innerHTML = summary + State.history.map(h => {
@@ -673,6 +695,30 @@ function clearHistory(){
 function isVisited(poi){
   return State.history.some(h => h.id === poi.id || h.name === poi.name);
 }
+function csvCell(v){
+  const s = String(v == null ? '' : v);
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function exportHistory(){
+  if(State.history.length === 0){ toast('אין היסטוריה לייצוא'); return; }
+  const rows = [['שם', 'קטגוריה', 'תאריך ושעה', 'מרחק במעבר (מ׳)', 'קו רוחב', 'קו אורך', 'קישור מפה']];
+  for(const h of State.history){
+    const label = CATEGORIES[h.cat] ? CATEGORIES[h.cat].label : '';
+    rows.push([
+      h.name, label, new Date(h.time).toLocaleString('he-IL'),
+      h.dist, h.lat, h.lon, `https://www.google.com/maps?q=${h.lat},${h.lon}`,
+    ]);
+  }
+  const csv = rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type:'text/csv;charset=utf-8' }); // BOM לעברית באקסל
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `more-derech-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('הקובץ יורד 📥');
+}
 
 /* ============================================================
    מצב לילה — החלפת אריחי מפה כהים
@@ -694,7 +740,7 @@ function setNightMode(on){
    הגדרות
    ============================================================ */
 function loadSettings(){
-  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, radius:350, sound:true, speak:true, vibrate:true, wake:true, onlyNew:false, night:false, navApp:'ask', speedRange:true };
+  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, radius:350, sound:true, speak:true, vibrate:true, wake:true, onlyNew:false, night:false, navApp:'ask', speedRange:true, voiceLang:'he' };
   try{
     const saved = JSON.parse(localStorage.getItem('moreDerech') || '{}');
     const cats = Object.assign({}, def.cats, saved.cats || {});
@@ -716,6 +762,13 @@ function applySettingsToUI(){
   const navSel = document.getElementById('navAppSel');
   navSel.value = State.settings.navApp;
   navSel.addEventListener('change', () => { State.settings.navApp = navSel.value; saveSettings(); });
+  const voiceSel = document.getElementById('voiceLangSel');
+  voiceSel.value = State.settings.voiceLang;
+  voiceSel.addEventListener('change', () => {
+    State.settings.voiceLang = voiceSel.value; saveSettings();
+    if(State.settings.speak) speak(voiceSel.value === 'en' ? 'English voice selected' : 'נבחרה הקראה בעברית');
+  });
+  setupNearbyFilter();
 }
 function bindToggle(elId, key){
   const el = document.getElementById(elId);
@@ -724,7 +777,7 @@ function bindToggle(elId, key){
     State.settings[key] = el.checked; saveSettings();
     if(key === 'wake'){ el.checked && State.tracking ? requestWakeLock() : releaseWakeLock(); }
     if(key === 'night'){ setNightMode(el.checked); }
-    if(key === 'speak' && el.checked){ speak('הקראת שם המקום מופעלת'); }
+    if(key === 'speak' && el.checked){ speak(State.settings.voiceLang === 'en' ? 'Voice announcements enabled' : 'הקראת שם המקום מופעלת'); }
     if(key === 'onlyNew'){ refreshNearbyBadge(); }
   });
 }
@@ -771,26 +824,34 @@ function beep(){
 function vibrate(pattern){ if(State.settings.vibrate && navigator.vibrate) navigator.vibrate(pattern); }
 
 /* ---------- הקראה קולית (קריין) ---------- */
-let heVoice = null;
+let voicesCache = [];
 function pickVoice(){
-  if(!('speechSynthesis' in window)) return;
-  const vs = speechSynthesis.getVoices();
-  heVoice = vs.find(v => /^(he|iw)/i.test(v.lang)) || heVoice;
+  if('speechSynthesis' in window) voicesCache = speechSynthesis.getVoices();
 }
 if('speechSynthesis' in window){
   pickVoice();
   speechSynthesis.onvoiceschanged = pickVoice;
 }
-function speak(text){
+function voiceFor(lang){
+  const re = lang === 'en' ? /^en/i : /^(he|iw)/i;
+  return voicesCache.find(v => re.test(v.lang)) || null;
+}
+function speak(text, lang){
   if(!State.settings.speak || !('speechSynthesis' in window)) return;
+  lang = lang || State.settings.voiceLang || 'he';
   try{
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'he-IL';
-    if(heVoice) u.voice = heVoice;
+    u.lang = lang === 'en' ? 'en-US' : 'he-IL';
+    const v = voiceFor(lang); if(v) u.voice = v;
     u.rate = 1; u.pitch = 1; u.volume = 1;
     speechSynthesis.speak(u);
   }catch(e){ /* אין הקראה */ }
+}
+// טקסט ההכרזה לפי שפה
+function announceText(poi){
+  if(State.settings.voiceLang === 'en') return `Approaching ${poi.nameEn || poi.name}`;
+  return `מתקרבים ל${poi.name}`;
 }
 
 async function requestWakeLock(){
