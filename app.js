@@ -184,14 +184,37 @@ function onGeoError(e){
   else setGps('err','שגיאה');
 }
 
+// רכב מבט-על שמסתובב לפי כיוון הנסיעה (החזית פונה לצפון ב-0°)
+const CAR_SVG = `<svg viewBox="0 0 36 36" width="36" height="36">
+  <rect x="10.5" y="5" width="15" height="26" rx="6" fill="#2563eb" stroke="#ffffff" stroke-width="1.6"/>
+  <path d="M12.5 11 Q18 8 23.5 11 L22 15.5 L14 15.5 Z" fill="#cfe0ff"/>
+  <rect x="13.5" y="22" width="9" height="4.5" rx="1.6" fill="#a9c6ff"/>
+  <circle cx="13" cy="6.8" r="1.1" fill="#fff6c2"/>
+  <circle cx="23" cy="6.8" r="1.1" fill="#fff6c2"/>
+  <rect x="9.5" y="12.5" width="2" height="5" rx="1" fill="#16306e"/>
+  <rect x="24.5" y="12.5" width="2" height="5" rx="1" fill="#16306e"/>
+  <rect x="9.5" y="20" width="2" height="5" rx="1" fill="#16306e"/>
+  <rect x="24.5" y="20" width="2" height="5" rx="1" fill="#16306e"/>
+</svg>`;
+
 function drawUser(lat, lon, acc){
   if(!State.userMarker){
-    const icon = L.divIcon({ className:'', html:'<div class="user-dot user-pulse"></div>', iconSize:[22,22], iconAnchor:[11,11] });
+    const icon = L.divIcon({
+      className:'car-marker',
+      html:`<div class="car-glow"></div><div class="car-rot">${CAR_SVG}</div>`,
+      iconSize:[40,40], iconAnchor:[20,20],
+    });
     State.userMarker = L.marker([lat,lon], { icon, zIndexOffset:1000 }).addTo(State.map);
     State.accuracyCircle = L.circle([lat,lon], { radius:acc||30, color:'#2563eb', weight:1, fillColor:'#2563eb', fillOpacity:.08 }).addTo(State.map);
   } else {
     State.userMarker.setLatLng([lat,lon]);
     State.accuracyCircle.setLatLng([lat,lon]).setRadius(acc||30);
+  }
+  // סיבוב הרכב לכיוון הנסיעה
+  const el = State.userMarker.getElement();
+  if(el){
+    const rot = el.querySelector('.car-rot');
+    if(rot && State.bearing != null) rot.style.transform = `rotate(${State.bearing}deg)`;
   }
 }
 
@@ -295,12 +318,40 @@ function classify(tags, cats){
   return null;
 }
 
+// אייקון ספציפי לכל אתר לפי התגיות של OSM, עם נפילה לאימוג'י הקטגוריה
+function poiEmoji(poi){
+  const t = poi.tags || {};
+  if(t.waterway === 'waterfall') return '🌊';
+  if(t.natural === 'spring') return '💧';
+  if(t.natural === 'water') return '🏞️';
+  if(t.tourism === 'viewpoint') return '🔭';
+  if(t.tourism === 'museum') return '🏛️';
+  if(t.tourism === 'attraction') return '🎡';
+  if(t.tourism === 'artwork') return '🗿';
+  if(t.tourism === 'camp_site') return '⛺';
+  if(t.tourism === 'caravan_site') return '🚐';
+  if(t.tourism === 'picnic_site' || t.leisure === 'picnic_table') return '🧺';
+  if(t.tourism === 'information' || t.information === 'guidepost') return '🪧';
+  if(t.highway === 'trailhead') return '🥾';
+  if(t.historic === 'archaeological_site') return '🏺';
+  if(t.historic === 'castle' || t.historic === 'fort') return '🏰';
+  if(t.historic === 'ruins') return '🏚️';
+  if(t.historic === 'monument' || t.historic === 'memorial') return '🗿';
+  if(t.historic === 'tomb') return '⚰️';
+  if(t.historic) return '🏺';
+  if(t.natural === 'cave_entrance') return '🕳️';
+  if(t.natural === 'peak') return '⛰️';
+  if(t.natural === 'beach') return '🏖️';
+  if(t.leisure === 'nature_reserve' || t.boundary === 'national_park') return '🌲';
+  return (CATEGORIES[poi.cat] && CATEGORIES[poi.cat].emoji) || '📍';
+}
+
 function addMarker(poi){
-  const c = CATEGORIES[poi.cat];
+  const emoji = poiEmoji(poi);
   const icon = L.divIcon({
     className:'',
-    html:`<div style="font-size:24px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))">${c.emoji}</div>`,
-    iconSize:[28,28], iconAnchor:[14,28], popupAnchor:[0,-26],
+    html:`<div class="poi-badge">${emoji}</div>`,
+    iconSize:[32,32], iconAnchor:[16,16], popupAnchor:[0,-18],
   });
   const m = L.marker([poi.lat, poi.lon], { icon }).addTo(State.map);
   m.on('click', () => openPlace(poi.id));

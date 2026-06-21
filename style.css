@@ -242,13 +242,31 @@ input[type=range]{width:100%;accent-color:var(--teal);height:28px}
 .scrim{position:fixed;inset:0;z-index:900;background:rgba(2,8,23,.4);opacity:0;pointer-events:none;transition:opacity .3s}
 .scrim.show{opacity:1;pointer-events:auto}
 
-/* ---------- סמן משתמש ---------- */
-.user-dot{
-  width:22px;height:22px;border-radius:50%;background:#2563eb;border:3px solid #fff;
-  box-shadow:0 0 0 4px rgba(37,99,235,.3),0 2px 6px rgba(0,0,0,.4);
+/* ---------- סמן משתמש: רכב שנוסע ---------- */
+.car-marker{ position:relative; }
+.car-glow{
+  position:absolute; inset:6px; border-radius:50%;
+  background:radial-gradient(circle, rgba(37,99,235,.4), rgba(37,99,235,0) 70%);
+  animation:carGlow 1.8s ease-in-out infinite;
 }
-.user-pulse{animation:userPulse 2s infinite}
-@keyframes userPulse{0%{box-shadow:0 0 0 0 rgba(37,99,235,.4),0 2px 6px rgba(0,0,0,.4)}70%{box-shadow:0 0 0 18px rgba(37,99,235,0),0 2px 6px rgba(0,0,0,.4)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0),0 2px 6px rgba(0,0,0,.4)}}
+@keyframes carGlow{
+  0%,100%{ transform:scale(.75); opacity:.65 }
+  50%{ transform:scale(1.25); opacity:.2 }
+}
+.car-rot{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  transform-origin:50% 50%; transition:transform .25s linear;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.45));
+}
+
+/* ---------- סמן אתר ---------- */
+.poi-badge{
+  width:32px; height:32px; border-radius:50%;
+  background:rgba(255,255,255,.94); border:2px solid #1d4ed8;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; line-height:1;
+  box-shadow:0 2px 5px rgba(0,0,0,.35);
+}
 
 /* ---------- toast ---------- */
 /* ---------- מסך פתיחה ---------- */
