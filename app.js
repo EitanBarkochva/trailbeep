@@ -356,8 +356,10 @@ async function openPlace(id){
   const body = document.getElementById('sheetBody');
   body.innerHTML = '<p class="muted">טוען הסבר…</p>';
 
-  // כפתור ניווט (Google Maps / אפליקציית מפות במכשיר)
-  document.getElementById('navBtn').onclick = () =>
+  // כפתורי ניווט — Waze ו-Google Maps
+  document.getElementById('navWaze').onclick = () =>
+    window.open(`https://waze.com/ul?ll=${poi.lat}%2C${poi.lon}&navigate=yes`, '_blank');
+  document.getElementById('navGoogle').onclick = () =>
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${poi.lat},${poi.lon}`, '_blank');
 
   openSheet();
