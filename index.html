@@ -38,7 +38,7 @@
   <div id="gpsStatus" class="gps-status" title="מצב מיקום">
     <span class="dot"></span><span class="gps-text">מאתר…</span>
   </div>
-  <button id="historyBtn" class="icon-btn" onclick="openHistory()" aria-label="היסטוריה" title="מקומות שעברת לידם">📜</button>
+  <button id="historyBtn" class="icon-btn" onclick="openHistory()" aria-label="היסטוריה" title="מקומות שעברת לידם">📜<span id="historyBadge" class="hist-badge" hidden>0</span></button>
   <button id="settingsBtn" class="icon-btn" onclick="toggleSettings()" aria-label="הגדרות" title="הגדרות">⚙️</button>
 </header>
 
@@ -116,7 +116,12 @@
       <label class="check toggle"><input type="checkbox" id="speakChk" checked> 🗣️ הקראת שם המקום בקול</label>
       <label class="check toggle"><input type="checkbox" id="vibrateChk" checked> 📳 רטט</label>
       <label class="check toggle"><input type="checkbox" id="wakeChk" checked> ☀️ השאר מסך דולק בזמן מעקב</label>
+      <label class="check toggle"><input type="checkbox" id="speedChk" checked> 🏎️ טווח התראה לפי מהירות (מתריע מוקדם יותר בכביש מהיר)</label>
       <label class="check toggle"><input type="checkbox" id="nightChk"> 🌙 מצב לילה (מפה כהה)</label>
+    </section>
+
+    <section class="field">
+      <button class="ghost-wide" onclick="openOnboarding()">❓ איך זה עובד?</button>
     </section>
 
     <section class="field note">
@@ -166,6 +171,24 @@
   <div class="sheet-actions">
     <div class="nav-row" id="navRow"></div>
     <button class="share-btn" id="shareBtn">📲 שתף מיקום בוואטסאפ</button>
+  </div>
+</div>
+
+<!-- ============ מסך פתיחה / הסבר ============ -->
+<div id="onboarding" class="onboarding">
+  <div class="ob-card">
+    <div class="ob-logo">🧭</div>
+    <h1>ברוכים הבאים ל<b>מורה דרך</b></h1>
+    <p class="ob-sub">מדריך טיולים שמתריע ברקע — מצפצף כשאתם מתקרבים למקום ששווה להכיר.</p>
+    <ul class="ob-list">
+      <li><span>🗺️</span> ראו את עצמכם על מפת ישראל בזמן אמת</li>
+      <li><span>🔔</span> צפצוף והקראה כשמתקרבים למעיין, אתר היסטורי או תצפית</li>
+      <li><span>📖</span> הקישו על מקום וקבלו הסבר קצר מויקיפדיה + ניווט</li>
+      <li><span>🚗</span> "מצב נהיגה" — כרטיס גדול עם האתר הבא בדרך</li>
+      <li><span>⚙️</span> בהגדרות תבחרו על מה להתריע ובאיזה מרחק</li>
+    </ul>
+    <p class="ob-note">📍 המעקב פועל כל עוד האפליקציה פתוחה. כשתלחצו "התחל מעקב" — אשרו את הרשאת המיקום.</p>
+    <button class="ob-btn" onclick="dismissOnboarding()">בואו נתחיל →</button>
   </div>
 </div>
 

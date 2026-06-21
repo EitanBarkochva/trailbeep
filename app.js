@@ -26,6 +26,7 @@ const State = {
   driveTarget: null,    // ה-POI שמוצג כרגע בכרטיס הנהיגה
   bearing: null,        // כיוון הנסיעה במעלות
   bearingFrom: null,    // נקודה ממנה מחשבים כיוון
+  speed: 0,             // מהירות נוכחית במ׳/ש
   history: loadHistory(),
   settings: loadSettings(),
 };
@@ -67,6 +68,8 @@ function init(){
   initMap();
   applySettingsToUI();
   setNightMode(State.settings.night);
+  updateTodayBadge();
+  maybeShowOnboarding();
   registerSW();
   // ניסיון לאתר מיקום פעם אחת מיד (גם בלי מעקב מלא)
   locateOnce();
@@ -136,6 +139,7 @@ function stopTracking(){
 function onPosition(p){
   const { latitude:lat, longitude:lon, accuracy:acc } = p.coords;
   State.pos = { lat, lon, acc };
+  State.speed = (p.coords.speed != null && p.coords.speed >= 0) ? p.coords.speed : 0;
   updateBearing(lat, lon, p.coords.heading);
   setGps('live', State.tracking ? 'עוקב…' : 'מאותר');
   drawUser(lat, lon, acc);
@@ -292,7 +296,7 @@ function addMarker(poi){
    בדיקת קרבה + התראה
    ============================================================ */
 function checkProximity(lat, lon){
-  const R = State.settings.radius;
+  const R = effectiveRadius();
   let nearest = null, nearestD = Infinity;
 
   for(const poi of State.pois.values()){
@@ -309,6 +313,15 @@ function checkProximity(lat, lon){
   }
 }
 
+// מרחק התראה אפקטיבי: במהירות גבוהה מתריעים מוקדם יותר (כ-12 שניות מראש)
+function effectiveRadius(){
+  let R = State.settings.radius;
+  if(State.settings.speedRange && State.speed > 4){ // מעל ~14 קמ״ש
+    R += Math.min(State.speed * 12, 1500); // עד +1.5 ק״מ
+  }
+  return R;
+}
+
 function fireAlert(poi, dist){
   beep();
   vibrate([180, 80, 180]);
@@ -316,6 +329,21 @@ function fireAlert(poi, dist){
   showBanner(poi, dist);
   logHistory(poi, dist);
   refreshNearbyBadge();
+  updateTodayBadge();
+}
+
+// מונה אתרים שעברנו לידם היום
+function todayCount(){
+  const start = new Date(); start.setHours(0,0,0,0);
+  const t0 = start.getTime();
+  return State.history.filter(h => h.time >= t0).length;
+}
+function updateTodayBadge(){
+  const n = todayCount();
+  const badge = document.getElementById('historyBadge');
+  if(!badge) return;
+  badge.textContent = n;
+  badge.hidden = n === 0;
 }
 
 function showBanner(poi, dist){
@@ -614,7 +642,9 @@ function renderHistory(){
     return;
   }
   clearBtn.hidden = false;
-  list.innerHTML = State.history.map(h => {
+  const t = todayCount();
+  const summary = `<div class="hist-summary">📅 עברת היום ליד ${t} ${t === 1 ? 'מקום' : 'מקומות'}</div>`;
+  list.innerHTML = summary + State.history.map(h => {
     const c = CATEGORIES[h.cat] || { emoji:'📍', label:'' };
     return `<div class="nearby-item" onclick="openFromHistory('${h.id}')">
       <span class="ni-emoji">${c.emoji}</span>
@@ -664,7 +694,7 @@ function setNightMode(on){
    הגדרות
    ============================================================ */
 function loadSettings(){
-  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, radius:350, sound:true, speak:true, vibrate:true, wake:true, onlyNew:false, night:false, navApp:'ask' };
+  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, radius:350, sound:true, speak:true, vibrate:true, wake:true, onlyNew:false, night:false, navApp:'ask', speedRange:true };
   try{
     const saved = JSON.parse(localStorage.getItem('moreDerech') || '{}');
     const cats = Object.assign({}, def.cats, saved.cats || {});
@@ -682,6 +712,7 @@ function applySettingsToUI(){
   document.getElementById('radiusVal').textContent = State.settings.radius;
   bindToggle('soundChk','sound'); bindToggle('speakChk','speak'); bindToggle('vibrateChk','vibrate');
   bindToggle('wakeChk','wake'); bindToggle('onlyNewChk','onlyNew'); bindToggle('nightChk','night');
+  bindToggle('speedChk','speedRange');
   const navSel = document.getElementById('navAppSel');
   navSel.value = State.settings.navApp;
   navSel.addEventListener('change', () => { State.settings.navApp = navSel.value; saveSettings(); });
@@ -842,6 +873,18 @@ function fmtTime(ts){
 }
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------- מסך פתיחה ---------- */
+function maybeShowOnboarding(){
+  if(localStorage.getItem('moreDerech_seen')) return;
+  showOnboarding();
+}
+function showOnboarding(){ document.getElementById('onboarding').classList.add('show'); }
+function openOnboarding(){ closeAll(); showOnboarding(); }
+function dismissOnboarding(){
+  document.getElementById('onboarding').classList.remove('show');
+  localStorage.setItem('moreDerech_seen', '1');
 }
 
 /* ---------- Service Worker ---------- */
