@@ -16,6 +16,24 @@ const TYPES = {
 
 http.createServer((req, res) => {
   let urlPath = decodeURIComponent(req.url.split("?")[0]);
+
+  // נקודת שמירה לפיתוח בלבד: כתיבת PNG מבסיס64 (לרסטור אייקונים מהדפדפן)
+  if (req.method === "POST" && urlPath === "/__save") {
+    let body = "";
+    req.on("data", c => body += c);
+    req.on("end", () => {
+      try {
+        const { path: p, b64 } = JSON.parse(body);
+        const out = path.join(ROOT, p);
+        if (!out.startsWith(ROOT)) { res.writeHead(403); res.end("Forbidden"); return; }
+        fs.writeFileSync(out, Buffer.from(b64, "base64"));
+        res.writeHead(200, { "Access-Control-Allow-Origin": "*" });
+        res.end("ok");
+      } catch (e) { res.writeHead(500); res.end(String(e)); }
+    });
+    return;
+  }
+
   if (urlPath === "/") urlPath = "/index.html";
   const filePath = path.join(ROOT, urlPath);
   if (!filePath.startsWith(ROOT)) { res.writeHead(403); res.end("Forbidden"); return; }

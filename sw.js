@@ -2,15 +2,15 @@
    מטמון "מעטפת אפליקציה" כדי שתיפתח גם בלי רשת.
    נתוני המפה/אתרים/ויקיפדיה תמיד מהרשת (לא נשמרים כאן). */
 
-const CACHE = 'more-derech-v3';
+const CACHE = 'more-derech-v4';
 const SHELL = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.webmanifest',
-  './icons/icon-192.svg',
-  './icons/icon-512.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
 ];

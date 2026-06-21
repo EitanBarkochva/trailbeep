@@ -4,32 +4,18 @@
       <stop offset="0" stop-color="#19c2b1"/>
       <stop offset="1" stop-color="#0b5650"/>
     </linearGradient>
-    <radialGradient id="glow" cx="50%" cy="38%" r="60%">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#03211f" flood-opacity="0.35"/>
-    </filter>
   </defs>
-
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <rect width="512" height="512" rx="112" fill="url(#glow)"/>
-
-  <g transform="translate(256,256)" filter="url(#sh)">
-    <!-- טבעת מצפן -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <g transform="translate(256,256) scale(0.82)">
     <circle r="168" fill="none" stroke="#ffffff" stroke-width="14" opacity="0.92"/>
-    <!-- סימוני רוחות שמיים -->
     <g fill="#ffffff" opacity="0.92">
       <rect x="-5" y="-158" width="10" height="30" rx="3"/>
       <rect x="-5" y="128"  width="10" height="30" rx="3"/>
       <rect x="-158" y="-5" width="30" height="10" rx="3"/>
       <rect x="128"  y="-5" width="30" height="10" rx="3"/>
     </g>
-    <!-- מחוג: צפון אדום, דרום לבן -->
     <polygon points="0,-132 38,18 0,-2 -38,18" fill="#ef4444"/>
     <polygon points="0,132 38,-18 0,2 -38,-18" fill="#f1f5f9"/>
-    <!-- ציר מרכזי -->
     <circle r="22" fill="#0f172a"/>
     <circle r="9" fill="#ffffff"/>
   </g>
