@@ -12,6 +12,8 @@ const State = {
   tileLayer: null,
   userMarker: null,
   accuracyCircle: null,
+  trail: [],            // נקודות אחרונות לשובל מאחורי הרכב
+  trailLayers: [],      // קטעי הפוליליין של השובל
   pos: null,            // {lat, lon, acc}
   watchId: null,
   tracking: false,
@@ -156,6 +158,7 @@ function onPosition(p){
   State.speed = (p.coords.speed != null && p.coords.speed >= 0) ? p.coords.speed : 0;
   updateBearing(lat, lon, p.coords.heading);
   setGps('live', State.tracking ? 'עוקב…' : 'מאותר');
+  updateTrail(lat, lon);
   drawUser(lat, lon, acc);
   if(State.followUser) State.map.setView([lat, lon], Math.max(State.map.getZoom(), 14), { animate:true });
   maybeFetchPOIs(lat, lon);
@@ -196,6 +199,31 @@ const CAR_SVG = `<svg viewBox="0 0 36 36" width="36" height="36">
   <rect x="9.5" y="20" width="2" height="5" rx="1" fill="#16306e"/>
   <rect x="24.5" y="20" width="2" height="5" rx="1" fill="#16306e"/>
 </svg>`;
+
+// שובל קצר ודוהה מאחורי הרכב — הדרך שכבר עברת
+const TRAIL_MAX = 18;       // כמה נקודות לשמור (שובל קצר)
+const TRAIL_MIN_MOVE = 6;   // מטרים — מרחק מינימלי בין נקודות
+function updateTrail(lat, lon){
+  const last = State.trail[State.trail.length - 1];
+  if(last && haversine(last[0], last[1], lat, lon) < TRAIL_MIN_MOVE) return;
+  State.trail.push([lat, lon]);
+  if(State.trail.length > TRAIL_MAX) State.trail.shift();
+  drawTrail();
+}
+function drawTrail(){
+  State.trailLayers.forEach(l => State.map.removeLayer(l));
+  State.trailLayers = [];
+  const pts = State.trail;
+  // כל קטע צבוע בשקיפות עולה — ישן=דהוי, חדש=בולט
+  for(let i = 1; i < pts.length; i++){
+    const t = i / (pts.length - 1);            // 0 (ישן) → 1 (חדש)
+    const seg = L.polyline([pts[i-1], pts[i]], {
+      color:'#2563eb', weight: 3 + 5*t, opacity: 0.12 + 0.5*t,
+      lineCap:'round', lineJoin:'round', interactive:false,
+    }).addTo(State.map);
+    State.trailLayers.push(seg);
+  }
+}
 
 function drawUser(lat, lon, acc){
   if(!State.userMarker){
