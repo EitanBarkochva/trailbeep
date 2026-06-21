@@ -46,6 +46,7 @@
 <div id="driveCard" class="drive-card" onclick="openDriveTarget()">
   <div class="dc-head">🚗 האתר הבא בדרך</div>
   <div class="dc-main">
+    <span id="dcArrow" class="dc-arrow">↑</span>
     <span id="dcEmoji" class="dc-emoji">🧭</span>
     <div class="dc-info">
       <div id="dcName" class="dc-name">מחפש אתרים בדרך…</div>
@@ -53,7 +54,10 @@
     </div>
     <div id="dcDist" class="dc-dist"></div>
   </div>
-  <button class="dc-exit" onclick="event.stopPropagation(); toggleDriveMode()">✕ צא ממצב נהיגה</button>
+  <div class="dc-buttons">
+    <button class="dc-nav" onclick="event.stopPropagation(); navDriveTarget()">🧭 נווט</button>
+    <button class="dc-exit" onclick="event.stopPropagation(); toggleDriveMode()">✕ צא ממצב נהיגה</button>
+  </div>
 </div>
 
 <!-- ============ באנר התראה (צץ למעלה) ============ -->
@@ -90,6 +94,15 @@
     <section class="field">
       <h3>סינון</h3>
       <label class="check toggle"><input type="checkbox" id="onlyNewChk"> 🆕 התרע רק על מקומות שלא עברתי</label>
+    </section>
+
+    <section class="field">
+      <h3>אפליקציית ניווט מועדפת</h3>
+      <select id="navAppSel" class="nav-select">
+        <option value="ask">שאל כל פעם (Waze / Google)</option>
+        <option value="waze">תמיד Waze</option>
+        <option value="google">תמיד Google Maps</option>
+      </select>
     </section>
 
     <section class="field">
@@ -151,8 +164,8 @@
     <p class="muted">טוען הסבר…</p>
   </div>
   <div class="sheet-actions">
-    <button class="primary-btn waze" id="navWaze">🚗 נווט עם Waze</button>
-    <button class="primary-btn gmaps" id="navGoogle">🗺️ Google Maps</button>
+    <div class="nav-row" id="navRow"></div>
+    <button class="share-btn" id="shareBtn">📲 שתף מיקום בוואטסאפ</button>
   </div>
 </div>
 

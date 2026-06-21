@@ -356,11 +356,8 @@ async function openPlace(id){
   const body = document.getElementById('sheetBody');
   body.innerHTML = '<p class="muted">טוען הסבר…</p>';
 
-  // כפתורי ניווט — Waze ו-Google Maps
-  document.getElementById('navWaze').onclick = () =>
-    window.open(`https://waze.com/ul?ll=${poi.lat}%2C${poi.lon}&navigate=yes`, '_blank');
-  document.getElementById('navGoogle').onclick = () =>
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${poi.lat},${poi.lon}`, '_blank');
+  renderNavButtons(poi);
+  document.getElementById('shareBtn').onclick = () => shareWhatsApp(poi);
 
   openSheet();
 
@@ -490,10 +487,12 @@ function updateDriveCard(){
   const catEl = document.getElementById('dcCat');
   const distEl = document.getElementById('dcDist');
   const emojiEl = document.getElementById('dcEmoji');
+  const arrowEl = document.getElementById('dcArrow');
   if(!poi){
     emojiEl.textContent = '🧭';
     nameEl.textContent = 'מחפש אתרים בדרך…';
     catEl.textContent = ''; distEl.textContent = '';
+    arrowEl.style.transform = 'rotate(0deg)'; arrowEl.classList.add('unknown');
     return;
   }
   const c = CATEGORIES[poi.cat];
@@ -501,6 +500,16 @@ function updateDriveCard(){
   nameEl.textContent = poi.name;
   catEl.textContent = c.label;
   distEl.textContent = fmtDist(poi._dist);
+
+  // חץ כיוון: 0° = ישר בכיוון הנסיעה, חיובי = פנייה ימינה
+  if(State.bearing != null && State.pos){
+    const rel = bearing(State.pos.lat, State.pos.lon, poi.lat, poi.lon) - State.bearing;
+    arrowEl.style.transform = `rotate(${rel}deg)`;
+    arrowEl.classList.remove('unknown');
+  } else {
+    arrowEl.style.transform = 'rotate(0deg)';
+    arrowEl.classList.add('unknown');
+  }
 }
 
 // בוחר את האתר הקרוב ביותר שנמצא בערך בכיוון הנסיעה (±80°); אם אין — הקרוב ביותר.
@@ -518,6 +527,50 @@ function computeNextAhead(){
 }
 
 function openDriveTarget(){ if(State.driveTarget) openPlace(State.driveTarget.id); }
+function navDriveTarget(){ if(State.driveTarget) navigateWithPreferred(State.driveTarget); }
+
+/* ============================================================
+   ניווט (Waze / Google) ושיתוף
+   ============================================================ */
+function navUrl(poi, app){
+  return app === 'google'
+    ? `https://www.google.com/maps/dir/?api=1&destination=${poi.lat},${poi.lon}`
+    : `https://waze.com/ul?ll=${poi.lat}%2C${poi.lon}&navigate=yes`;
+}
+function navigateWithPreferred(poi){
+  const app = State.settings.navApp;
+  if(app === 'ask'){ openPlace(poi.id); return; } // אין מועדף — נבחר בגיליון
+  window.open(navUrl(poi, app), '_blank');
+}
+function rememberNav(app){
+  if(State.settings.navApp === app) return;
+  const wasAsk = State.settings.navApp === 'ask';
+  State.settings.navApp = app;
+  saveSettings();
+  const sel = document.getElementById('navAppSel'); if(sel) sel.value = app;
+  if(wasAsk) toast('נשמר כברירת מחדל · אפשר לשנות בהגדרות');
+}
+function renderNavButtons(poi){
+  const row = document.getElementById('navRow');
+  const app = State.settings.navApp;
+  if(app === 'waze' || app === 'google'){
+    const cls = app === 'google' ? 'gmaps' : 'waze';
+    const label = app === 'google' ? '🗺️ נווט עם Google Maps' : '🚗 נווט עם Waze';
+    row.innerHTML = `<button class="primary-btn ${cls}" id="navPref">${label}</button>`;
+    document.getElementById('navPref').onclick = () => window.open(navUrl(poi, app), '_blank');
+  } else {
+    row.innerHTML =
+      `<button class="primary-btn waze" id="navWaze">🚗 Waze</button>
+       <button class="primary-btn gmaps" id="navGoogle">🗺️ Google Maps</button>`;
+    document.getElementById('navWaze').onclick = () => { rememberNav('waze'); window.open(navUrl(poi,'waze'), '_blank'); };
+    document.getElementById('navGoogle').onclick = () => { rememberNav('google'); window.open(navUrl(poi,'google'), '_blank'); };
+  }
+}
+function shareWhatsApp(poi){
+  const mapsUrl = `https://www.google.com/maps?q=${poi.lat},${poi.lon}`;
+  const text = `📍 ${poi.name}\n${mapsUrl}`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
 
 /* ============================================================
    היסטוריה — מקומות שעברנו לידם
@@ -611,7 +664,7 @@ function setNightMode(on){
    הגדרות
    ============================================================ */
 function loadSettings(){
-  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, radius:350, sound:true, speak:true, vibrate:true, wake:true, onlyNew:false, night:false };
+  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, radius:350, sound:true, speak:true, vibrate:true, wake:true, onlyNew:false, night:false, navApp:'ask' };
   try{
     const saved = JSON.parse(localStorage.getItem('moreDerech') || '{}');
     const cats = Object.assign({}, def.cats, saved.cats || {});
@@ -629,6 +682,9 @@ function applySettingsToUI(){
   document.getElementById('radiusVal').textContent = State.settings.radius;
   bindToggle('soundChk','sound'); bindToggle('speakChk','speak'); bindToggle('vibrateChk','vibrate');
   bindToggle('wakeChk','wake'); bindToggle('onlyNewChk','onlyNew'); bindToggle('nightChk','night');
+  const navSel = document.getElementById('navAppSel');
+  navSel.value = State.settings.navApp;
+  navSel.addEventListener('change', () => { State.settings.navApp = navSel.value; saveSettings(); });
 }
 function bindToggle(elId, key){
   const el = document.getElementById(elId);

@@ -113,7 +113,11 @@ body{
 .dc-name{font-size:24px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'Secular One',sans-serif}
 .dc-cat{font-size:14px;opacity:.85;margin-top:2px}
 .dc-dist{font-size:30px;font-weight:900;white-space:nowrap}
-.dc-exit{margin-top:10px;width:100%;background:rgba(255,255,255,.16);border:none;color:#fff;border-radius:12px;padding:9px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
+.dc-arrow{font-size:34px;line-height:1;display:inline-block;transition:transform .4s ease;transform-origin:50% 50%}
+.dc-arrow.unknown{opacity:.35}
+.dc-buttons{display:flex;gap:8px;margin-top:10px}
+.dc-nav{flex:1;background:#fff;color:var(--teal-d);border:none;border-radius:12px;padding:11px;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer}
+.dc-exit{flex:1;background:rgba(255,255,255,.16);border:none;color:#fff;border-radius:12px;padding:11px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer}
 
 .ghost-wide{
   width:100%;margin-top:16px;border:1.5px dashed var(--line);background:#fff;color:var(--muted);
@@ -182,7 +186,8 @@ input[type=range]{width:100%;accent-color:var(--teal);height:28px}
 .sheet-body .src{font-size:12px;color:var(--muted);margin-top:10px}
 .sheet-body .src a{color:var(--teal)}
 .muted{color:var(--muted)}
-.sheet-actions{padding:8px 16px 0;display:flex;gap:10px}
+.sheet-actions{padding:8px 16px 0;display:flex;flex-direction:column;gap:10px}
+.nav-row{display:flex;gap:10px}
 .primary-btn{
   flex:1;border:none;border-radius:14px;padding:14px;font-size:16px;font-weight:800;font-family:inherit;
   background:var(--teal);color:#fff;cursor:pointer;text-decoration:none;display:block;text-align:center;
@@ -190,6 +195,15 @@ input[type=range]{width:100%;accent-color:var(--teal);height:28px}
 .primary-btn.waze{background:#33ccff;color:#003a5c}
 .primary-btn.gmaps{background:#1a73e8}
 .primary-btn:active{transform:translateY(1px)}
+.share-btn{
+  border:none;border-radius:14px;padding:13px;font-size:15px;font-weight:800;font-family:inherit;
+  background:#25d366;color:#063920;cursor:pointer;
+}
+.share-btn:active{transform:translateY(1px)}
+.nav-select{
+  width:100%;padding:12px;border:1.5px solid var(--line);border-radius:12px;font-size:15px;
+  font-weight:600;font-family:inherit;background:#fff;color:var(--ink);
+}
 
 /* ---------- שכבת רקע ---------- */
 .scrim{position:fixed;inset:0;z-index:900;background:rgba(2,8,23,.4);opacity:0;pointer-events:none;transition:opacity .3s}
