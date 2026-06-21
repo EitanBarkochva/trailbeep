@@ -67,6 +67,16 @@
 <!-- ============ כפתור מרכוז ============ -->
 <button id="recenterBtn" class="recenter-btn" onclick="recenter()" aria-label="מרכז על המיקום שלי" title="מרכז עליי">🎯</button>
 
+<!-- ============ סרגל ניווט מובנה ============ -->
+<div id="navBar" class="nav-bar">
+  <span id="navArrow" class="nav-arrow">↑</span>
+  <div class="nav-info" onclick="recenterNav()">
+    <div id="navDestName" class="nav-dest">—</div>
+    <div id="navStats" class="nav-stats">מחשב מסלול…</div>
+  </div>
+  <button class="nav-end" onclick="endNav()" aria-label="סיום ניווט">✕<br><small>סיום</small></button>
+</div>
+
 <!-- ============ סרגל תחתון ============ -->
 <footer id="bottomBar">
   <button id="trackBtn" class="track-btn" onclick="toggleTracking()">▶ התחל מעקב</button>
@@ -123,6 +133,7 @@
     <section class="field">
       <label class="check toggle"><input type="checkbox" id="soundChk" checked> 🔊 צפצוף קולי</label>
       <label class="check toggle"><input type="checkbox" id="speakChk" checked> 🗣️ הקראת שם המקום בקול</label>
+      <label class="check toggle"><input type="checkbox" id="notifyChk" checked> 🔔 התראות מערכת (גם כשעברת לאפליקציה אחרת)</label>
       <label class="check toggle"><input type="checkbox" id="vibrateChk" checked> 📳 רטט</label>
       <label class="check toggle"><input type="checkbox" id="wakeChk" checked> ☀️ השאר מסך דולק בזמן מעקב</label>
       <label class="check toggle"><input type="checkbox" id="speedChk" checked> 🏎️ טווח התראה לפי מהירות (מתריע מוקדם יותר בכביש מהיר)</label>
@@ -186,6 +197,7 @@
   </div>
   <div class="sheet-actions">
     <div class="nav-row" id="navRow"></div>
+    <button class="primary-btn inapp" id="navInAppBtn">🧭 נווט בתוך האפליקציה</button>
     <button class="share-btn" id="shareBtn">📲 שתף מיקום בוואטסאפ</button>
   </div>
 </div>

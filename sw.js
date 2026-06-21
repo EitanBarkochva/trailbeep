@@ -2,7 +2,7 @@
    מטמון "מעטפת אפליקציה" כדי שתיפתח גם בלי רשת.
    נתוני המפה/אתרים/ויקיפדיה תמיד מהרשת (לא נשמרים כאן). */
 
-const CACHE = 'more-derech-v4';
+const CACHE = 'more-derech-v5';
 const SHELL = [
   './',
   './index.html',
@@ -34,7 +34,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
 
   // אריחי מפה, Overpass, ויקיפדיה — תמיד מהרשת
-  const networkOnly = /tile\.openstreetmap|basemaps\.cartocdn|overpass|wikipedia\.org/.test(url.host + url.pathname);
+  const networkOnly = /tile\.openstreetmap|basemaps\.cartocdn|overpass|wikipedia\.org|project-osrm/.test(url.host + url.pathname);
   if(networkOnly){
     e.respondWith(fetch(req).catch(() => caches.match(req)));
     return;

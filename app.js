@@ -25,6 +25,13 @@ const State = {
   driveMode: false,
   driveTarget: null,    // ה-POI שמוצג כרגע בכרטיס הנהיגה
   nearbyMaxKm: 0,       // סינון מרחק ברשימת "קרוב אליי" (0 = הכל)
+  navDest: null,        // יעד ניווט מובנה
+  navActive: false,
+  navRouteLayer: null,  // קו המסלול על המפה
+  navRouteFrom: null,   // מאיפה חושב המסלול לאחרונה
+  navRouteDist: null,   // מרחק המסלול (מ׳)
+  navRouteDur: null,    // משך המסלול (ש׳)
+  navFetching: false,
   bearing: null,        // כיוון הנסיעה במעלות
   bearingFrom: null,    // נקודה ממנה מחשבים כיוון
   speed: 0,             // מהירות נוכחית במ׳/ש
@@ -120,6 +127,7 @@ function startTracking(){
   );
   State.tracking = true;
   if(State.settings.wake) requestWakeLock();
+  if(State.settings.notify) requestNotifPermission();
   const btn = document.getElementById('trackBtn');
   btn.classList.add('on');
   btn.textContent = '⏹ עצור מעקב';
@@ -148,6 +156,7 @@ function onPosition(p){
   maybeFetchPOIs(lat, lon);
   checkProximity(lat, lon);
   if(State.driveMode) updateDriveCard();
+  if(State.navActive) updateNav();
 }
 
 // כיוון נסיעה: מהמכשיר אם זמין, אחרת מחושב מתזוזה של 15 מ׳ ומעלה
@@ -328,6 +337,7 @@ function fireAlert(poi, dist){
   vibrate([180, 80, 180]);
   speak(announceText(poi));
   showBanner(poi, dist);
+  notifyAlert(poi, dist);
   logHistory(poi, dist);
   refreshNearbyBadge();
   updateTodayBadge();
@@ -386,6 +396,7 @@ async function openPlace(id){
   body.innerHTML = '<p class="muted">טוען הסבר…</p>';
 
   renderNavButtons(poi);
+  document.getElementById('navInAppBtn').onclick = () => startNav(poi);
   document.getElementById('shareBtn').onclick = () => shareWhatsApp(poi);
 
   openSheet();
@@ -622,6 +633,97 @@ function shareWhatsApp(poi){
 }
 
 /* ============================================================
+   ניווט מובנה — קו מסלול, מרחק, זמן וכיוון (OSRM)
+   ============================================================ */
+const REROUTE_DIST = 300; // כל כמה מטר לחשב מסלול מחדש
+
+function startNav(poi){
+  State.navDest = poi;
+  State.navActive = true;
+  State.navRouteFrom = null;
+  State.navRouteDist = null; State.navRouteDur = null;
+  closeSheet();
+  document.getElementById('navBar').classList.add('show');
+  document.getElementById('navDestName').textContent = poi.name;
+  document.getElementById('navStats').textContent = 'מחשב מסלול…';
+  State.followUser = true;
+  if(!State.tracking){ startTracking(); }
+  else if(State.pos){ fetchRoute(); updateNav(); }
+  else { locateOnce(); }
+}
+
+function endNav(){
+  State.navActive = false;
+  State.navDest = null;
+  if(State.navRouteLayer){ State.map.removeLayer(State.navRouteLayer); State.navRouteLayer = null; }
+  document.getElementById('navBar').classList.remove('show');
+}
+
+function recenterNav(){
+  State.followUser = true;
+  if(State.navDest && State.pos){
+    const b = L.latLngBounds([[State.pos.lat,State.pos.lon],[State.navDest.lat,State.navDest.lon]]);
+    State.map.fitBounds(b, { padding:[60,60], maxZoom:16 });
+  }
+}
+
+async function fetchRoute(){
+  if(State.navFetching || !State.pos || !State.navDest) return;
+  State.navFetching = true;
+  State.navRouteFrom = { lat: State.pos.lat, lon: State.pos.lon };
+  const { lat, lon } = State.pos, d = State.navDest;
+  const url = `https://router.project-osrm.org/route/v1/driving/${lon},${lat};${d.lon},${d.lat}?overview=full&geometries=geojson`;
+  try{
+    const j = await fetch(url).then(r => r.json());
+    const route = j.routes && j.routes[0];
+    if(route){
+      State.navRouteDist = route.distance;
+      State.navRouteDur = route.duration;
+      const latlngs = route.geometry.coordinates.map(c => [c[1], c[0]]);
+      if(State.navRouteLayer) State.map.removeLayer(State.navRouteLayer);
+      State.navRouteLayer = L.polyline(latlngs, { color:'#1d4ed8', weight:6, opacity:.8 }).addTo(State.map);
+    }
+  }catch(e){ console.warn('osrm', e); }
+  State.navFetching = false;
+}
+
+function updateNav(){
+  if(!State.navActive || !State.navDest || !State.pos) return;
+  const dest = State.navDest;
+  const straight = haversine(State.pos.lat, State.pos.lon, dest.lat, dest.lon);
+
+  // הגעה ליעד
+  if(straight < 50){
+    speak(State.settings.voiceLang === 'en' ? `You arrived at ${dest.nameEn || dest.name}` : `הגעת ל${dest.name}`);
+    beep(); vibrate([200,100,200]);
+    toast('🎉 הגעת ליעד!');
+    endNav();
+    return;
+  }
+
+  // חישוב מסלול מחדש כל REROUTE_DIST מטר
+  if(!State.navRouteFrom || haversine(State.pos.lat, State.pos.lon, State.navRouteFrom.lat, State.navRouteFrom.lon) > REROUTE_DIST){
+    fetchRoute();
+  }
+
+  const distM = State.navRouteDist != null ? State.navRouteDist : straight;
+  let stats = `📏 ${fmtDist(distM)}`;
+  if(State.navRouteDur != null) stats += ` · ⏱️ ${fmtDuration(State.navRouteDur)}`;
+  document.getElementById('navStats').textContent = stats;
+
+  // חץ כיוון יחסי לכיוון הנסיעה
+  const arrow = document.getElementById('navArrow');
+  if(State.bearing != null){
+    const rel = bearing(State.pos.lat, State.pos.lon, dest.lat, dest.lon) - State.bearing;
+    arrow.style.transform = `rotate(${rel}deg)`;
+    arrow.classList.remove('unknown');
+  } else {
+    arrow.style.transform = 'rotate(0deg)';
+    arrow.classList.add('unknown');
+  }
+}
+
+/* ============================================================
    היסטוריה — מקומות שעברנו לידם
    ============================================================ */
 function loadHistory(){
@@ -740,7 +842,7 @@ function setNightMode(on){
    הגדרות
    ============================================================ */
 function loadSettings(){
-  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, radius:350, sound:true, speak:true, vibrate:true, wake:true, onlyNew:false, night:false, navApp:'ask', speedRange:true, voiceLang:'he' };
+  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, radius:350, sound:true, speak:true, vibrate:true, wake:true, onlyNew:false, night:false, navApp:'ask', speedRange:true, voiceLang:'he', notify:true };
   try{
     const saved = JSON.parse(localStorage.getItem('moreDerech') || '{}');
     const cats = Object.assign({}, def.cats, saved.cats || {});
@@ -757,6 +859,7 @@ function applySettingsToUI(){
   document.getElementById('radiusRange').value = State.settings.radius;
   document.getElementById('radiusVal').textContent = State.settings.radius;
   bindToggle('soundChk','sound'); bindToggle('speakChk','speak'); bindToggle('vibrateChk','vibrate');
+  bindToggle('notifyChk','notify');
   bindToggle('wakeChk','wake'); bindToggle('onlyNewChk','onlyNew'); bindToggle('nightChk','night');
   bindToggle('speedChk','speedRange');
   const navSel = document.getElementById('navAppSel');
@@ -778,6 +881,7 @@ function bindToggle(elId, key){
     if(key === 'wake'){ el.checked && State.tracking ? requestWakeLock() : releaseWakeLock(); }
     if(key === 'night'){ setNightMode(el.checked); }
     if(key === 'speak' && el.checked){ speak(State.settings.voiceLang === 'en' ? 'Voice announcements enabled' : 'הקראת שם המקום מופעלת'); }
+    if(key === 'notify' && el.checked){ requestNotifPermission(); }
     if(key === 'onlyNew'){ refreshNearbyBadge(); }
   });
 }
@@ -854,6 +958,26 @@ function announceText(poi){
   return `מתקרבים ל${poi.name}`;
 }
 
+/* ---------- התראות מערכת ---------- */
+function requestNotifPermission(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission === 'default') Notification.requestPermission().catch(()=>{});
+}
+function notifyAlert(poi, dist){
+  if(!State.settings.notify || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const c = CATEGORIES[poi.cat];
+  const body = `${c.emoji} ${c.label} · ${fmtDist(dist)}`;
+  try{
+    if(navigator.serviceWorker && navigator.serviceWorker.ready){
+      navigator.serviceWorker.ready.then(reg =>
+        reg.showNotification(poi.name, { body, icon:'icons/icon-192.png', badge:'icons/icon-192.png', tag:'md-alert', vibrate:[180,80,180] })
+      ).catch(()=>{});
+    } else {
+      new Notification(poi.name, { body, icon:'icons/icon-192.png' });
+    }
+  }catch(e){ /* התעלם */ }
+}
+
 async function requestWakeLock(){
   if(!('wakeLock' in navigator)) return;
   try{
@@ -911,6 +1035,13 @@ function haversine(lat1, lon1, lat2, lon2){
 function fmtDist(m){
   if(m == null || !isFinite(m)) return '';
   return m < 1000 ? Math.round(m/10)*10 + ' מ׳' : (m/1000).toFixed(1) + ' ק״מ';
+}
+function fmtDuration(s){
+  if(s == null || !isFinite(s)) return '';
+  const m = Math.round(s / 60);
+  if(m < 60) return m + ' דק׳';
+  const h = Math.floor(m / 60), mm = m % 60;
+  return mm ? `${h} ש׳ ${mm} דק׳` : `${h} ש׳`;
 }
 function bearing(lat1, lon1, lat2, lon2){
   const toRad = d => d*Math.PI/180;
