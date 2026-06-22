@@ -417,7 +417,7 @@ function effectiveRadius(){
 }
 
 function fireAlert(poi, dist){
-  beep();
+  if(State.settings.beepCats[poi.cat] !== false) beep();
   vibrate([180, 80, 180]);
   speak(announceText(poi));
   showBanner(poi, dist);
@@ -926,11 +926,12 @@ function setNightMode(on){
    הגדרות
    ============================================================ */
 function loadSettings(){
-  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, radius:350, sound:true, speak:true, vibrate:true, wake:true, onlyNew:false, night:false, navApp:'ask', speedRange:true, voiceLang:'he', notify:true };
+  const def = { cats:{springs:true,historic:true,nature:true,camping:false,trails:false,tourism:false}, beepCats:{springs:true,historic:true,nature:true,camping:true,trails:true,tourism:true}, radius:350, sound:true, speak:true, vibrate:true, wake:true, onlyNew:false, night:false, navApp:'ask', speedRange:true, voiceLang:'he', notify:true };
   try{
     const saved = JSON.parse(localStorage.getItem('moreDerech') || '{}');
     const cats = Object.assign({}, def.cats, saved.cats || {});
-    return Object.assign(def, saved, { cats });
+    const beepCats = Object.assign({}, def.beepCats, saved.beepCats || {});
+    return Object.assign(def, saved, { cats, beepCats });
   }catch(e){ return def; }
 }
 function saveSettings(){ localStorage.setItem('moreDerech', JSON.stringify(State.settings)); }
@@ -939,6 +940,14 @@ function applySettingsToUI(){
   document.querySelectorAll('[data-cat]').forEach(chk => {
     chk.checked = !!State.settings.cats[chk.dataset.cat];
     chk.addEventListener('change', onCatChange);
+  });
+  document.querySelectorAll('[data-beepcat]').forEach(chk => {
+    chk.checked = State.settings.beepCats[chk.dataset.beepcat] !== false;
+    chk.addEventListener('change', () => {
+      State.settings.beepCats[chk.dataset.beepcat] = chk.checked;
+      saveSettings();
+      if(chk.checked) beep(); // משוב מיידי
+    });
   });
   document.getElementById('radiusRange').value = State.settings.radius;
   document.getElementById('radiusVal').textContent = State.settings.radius;
