@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#0b3a36"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="78%" cy="50%" r="55%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="500" fill="url(#bg)"/>
+  <rect width="1024" height="500" fill="url(#glow)"/>
+
+  <!-- מצפן בצד שמאל -->
+  <g transform="translate(800,250)">
+    <circle r="150" fill="rgba(255,255,255,0.06)"/>
+    <circle r="118" fill="none" stroke="#ffffff" stroke-width="10" opacity="0.92"/>
+    <g fill="#ffffff" opacity="0.92">
+      <rect x="-4" y="-112" width="8" height="22" rx="3"/>
+      <rect x="-4" y="90" width="8" height="22" rx="3"/>
+      <rect x="-112" y="-4" width="22" height="8" rx="3"/>
+      <rect x="90" y="-4" width="22" height="8" rx="3"/>
+    </g>
+    <polygon points="0,-92 27,13 0,-1 -27,13" fill="#ef4444"/>
+    <polygon points="0,92 27,-13 0,1 -27,-13" fill="#f1f5f9"/>
+    <circle r="15" fill="#0f172a"/>
+    <circle r="6" fill="#ffffff"/>
+  </g>
+
+  <!-- טקסט (RTL) -->
+  <text x="600" y="210" text-anchor="end" font-family="Arial, 'Segoe UI', sans-serif" font-weight="900" font-size="92" fill="#ffffff">מורה דרך</text>
+  <text x="600" y="270" text-anchor="end" font-family="Arial, 'Segoe UI', sans-serif" font-weight="600" font-size="34" fill="#d1fae5">מתריע ומספר על אתרים בדרך</text>
+
+  <!-- אמוג'י של קטגוריות -->
+  <text x="600" y="360" text-anchor="end" font-family="Arial, sans-serif" font-size="46">💧 🏺 🌲 🥾 🎯</text>
+</svg>
