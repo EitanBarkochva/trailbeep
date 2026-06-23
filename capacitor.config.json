@@ -1,0 +1,8 @@
+{
+  "appId": "com.morederech.app",
+  "appName": "מורה דרך",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

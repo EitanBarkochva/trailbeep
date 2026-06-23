@@ -16,6 +16,7 @@ const State = {
   trailLayers: [],      // קטעי הפוליליין של השובל
   pos: null,            // {lat, lon, acc}
   watchId: null,
+  bgWatcherId: null,    // מזהה ה-watcher של מעקב רקע native (Capacitor)
   tracking: false,
   wakeLock: null,
   pois: new Map(),      // id -> poi
@@ -118,23 +119,61 @@ function toggleTracking(){
   State.tracking ? stopTracking() : startTracking();
 }
 
+// האם רצים בתוך אפליקציית Capacitor native
+function isNative(){
+  return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+}
+function nativeBG(){
+  return window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.BackgroundGeolocation;
+}
+
 function startTracking(){
-  if(!('geolocation' in navigator)){ toast('המכשיר לא תומך באיתור מיקום'); return; }
   primeAudio(); // לפתוח אודיו מתוך פעולת משתמש
   State.followUser = true;
-  State.watchId = navigator.geolocation.watchPosition(
-    p => onPosition(p),
-    e => onGeoError(e),
-    { enableHighAccuracy:true, timeout:15000, maximumAge:5000 }
-  );
   State.tracking = true;
+
+  const BG = nativeBG();
+  if(BG){
+    // מעקב רקע אמיתי (גם כשהמסך כבוי) דרך התוסף ה-native
+    BG.addWatcher({
+      backgroundMessage: 'עוקב אחרי המיקום כדי להתריע על אתרים בדרך',
+      backgroundTitle: 'מורה דרך — מעקב פעיל',
+      requestPermissions: true,
+      stale: false,
+      distanceFilter: 15,
+    }, (location, error) => {
+      if(error){
+        console.warn('BG geo', error);
+        if(error.code === 'NOT_AUTHORIZED'){
+          setGps('err','אין הרשאה');
+          if(confirm('כדי לעקוב ברקע צריך הרשאת מיקום "כל הזמן". לפתוח הגדרות?')) BG.openSettings();
+        }
+        return;
+      }
+      onPosition({ coords: {
+        latitude: location.latitude, longitude: location.longitude,
+        accuracy: location.accuracy, speed: location.speed, heading: location.bearing,
+      }});
+    }).then(id => { State.bgWatcherId = id; }).catch(e => console.warn('addWatcher', e));
+  } else {
+    // דפדפן רגיל — מעקב רק כשהאפליקציה פתוחה
+    if(!('geolocation' in navigator)){ toast('המכשיר לא תומך באיתור מיקום'); State.tracking = false; return; }
+    State.watchId = navigator.geolocation.watchPosition(
+      p => onPosition(p),
+      e => onGeoError(e),
+      { enableHighAccuracy:true, timeout:15000, maximumAge:5000 }
+    );
+  }
+
   if(State.settings.wake) requestWakeLock();
   if(State.settings.notify) requestNotifPermission();
   const btn = document.getElementById('trackBtn');
   btn.classList.add('on');
   btn.textContent = '⏹ עצור מעקב';
   setGps('live','עוקב…');
-  if(!localStorage.getItem('moreDerech_trackTip')){
+  if(isNative()){
+    toast('מעקב פעיל — עובד גם ברקע 🚗');
+  } else if(!localStorage.getItem('moreDerech_trackTip')){
     localStorage.setItem('moreDerech_trackTip', '1');
     toast('💡 השאירו את האפליקציה פתוחה על המסך — המעקב נעצר אם המסך ננעל');
   } else {
@@ -143,6 +182,8 @@ function startTracking(){
 }
 
 function stopTracking(){
+  const BG = nativeBG();
+  if(BG && State.bgWatcherId){ BG.removeWatcher({ id: State.bgWatcherId }).catch(()=>{}); State.bgWatcherId = null; }
   if(State.watchId != null){ navigator.geolocation.clearWatch(State.watchId); State.watchId = null; }
   State.tracking = false;
   releaseWakeLock();
@@ -1162,6 +1203,20 @@ function escapeHtml(s){
 
 /* ---------- מסך פתיחה ---------- */
 function maybeShowOnboarding(){
+  // בגרסת ה-native המעקב עובד גם ברקע — מעדכנים את ההסבר
+  if(isNative()){
+    const imp = document.querySelector('.ob-important');
+    if(imp){
+      imp.innerHTML =
+        '<div class="ob-important-title">✅ מוכן לדרך</div>' +
+        '<p>הגרסה הזו עוקבת <b>גם ברקע ובמסך כבוי</b>. כדי שזה יעבוד:</p>' +
+        '<div class="ob-steps">' +
+        '<div class="ob-step"><span>📍</span> אשרו הרשאת מיקום — בחרו <b>"כל הזמן" (Allow all the time)</b></div>' +
+        '<div class="ob-step"><span>🔔</span> אשרו הרשאת התראות</div>' +
+        '<div class="ob-step"><span>🔋</span> בטלו אופטימיזציית סוללה לאפליקציה כדי שלא תיעצר</div>' +
+        '</div>';
+    }
+  }
   if(localStorage.getItem('moreDerech_seen')) return;
   showOnboarding();
 }
@@ -1174,6 +1229,7 @@ function dismissOnboarding(){
 
 /* ---------- Service Worker ---------- */
 function registerSW(){
+  if(isNative()) return; // ב-native אין צורך ב-SW
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW', e));
   }

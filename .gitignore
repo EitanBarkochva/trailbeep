@@ -6,3 +6,10 @@ Thumbs.db
 # קבצים זמניים
 *.log
 .cache/
+
+# Capacitor / Android (נוצרים בבנייה)
+www/
+android/
+*.apk
+.gradle/
+package-lock.json
